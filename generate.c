@@ -1,12 +1,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <time.h>
+#include <sys/time.h>
 
 typedef uint32_t wid_t;
 
@@ -34,7 +35,7 @@ void const *simple_mmap(char const *filename) {
     int fd = open(filename, O_RDONLY);
     struct stat stat;
     fstat(fd, &stat);
-    void const *result = mmap(0, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    void const *result = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     assert(result != MAP_FAILED);
     return result;
 }
@@ -73,7 +74,9 @@ wid_t sample(struct dist const *dist) {
 }
 
 int main(int argc, char **argv) {
-    srand(time(NULL));
+    struct timeval timeval;
+    gettimeofday(&timeval, NULL);
+    srand((timeval.tv_sec + timeval.tv_usec) % UINT_MAX);
 
     open_database();
     assert(word(0)[0] == '\0');
