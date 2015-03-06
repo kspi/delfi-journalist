@@ -20,12 +20,14 @@ struct dist {
     } word_freq[];
 };
 
+// 'words' is a vector of C strings. The index in this vector is the word's id.
 struct words_header {
     uint32_t size;
     uint32_t offsets[];
-    //words[];
 } const *words;
 
+// 'kernel' is a vector of struct dist. It represents the rows of the
+// transition matrix.
 struct kernel_header {
     uint32_t size;
     uint32_t offsets[];
@@ -33,6 +35,7 @@ struct kernel_header {
 
 void const *simple_mmap(char const *filename) {
     int fd = open(filename, O_RDONLY);
+    assert(fd >= 0);
     struct stat stat;
     fstat(fd, &stat);
     void const *result = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -49,8 +52,8 @@ char const *word(wid_t wid) {
     return (char const *) (((uint8_t *)words) + words->offsets[wid]);
 }
 
-struct dist const *conditional_dist(wid_t wid1) {
-    return (struct dist *) (((uint8_t *)kernel) + kernel->offsets[wid1]);
+struct dist const *transition_distribution(wid_t from) {
+    return (struct dist *) (((uint8_t *)kernel) + kernel->offsets[from]);
 }
 
 wid_t sample(struct dist const *dist) {
@@ -83,7 +86,7 @@ int main(int argc, char **argv) {
 
     wid_t previous = 0;
     while (1) {
-        wid_t current = sample(conditional_dist(previous));
+        wid_t current = sample(transition_distribution(previous));
         if (current == 0) {
             break;
         }
