@@ -1,0 +1,2 @@
+DOWNLOAD_DELAY = 0.25
+

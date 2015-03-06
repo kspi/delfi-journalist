@@ -1,0 +1,97 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <assert.h>
+#include <time.h>
+
+typedef uint32_t wid_t;
+
+struct dist {
+    uint32_t size;
+    uint32_t total_freq;
+    struct word_freq {
+        wid_t wid;
+        uint32_t freq;
+    } word_freq[];
+};
+
+struct words_header {
+    uint32_t size;
+    uint32_t offsets[];
+    //words[];
+} const *words;
+
+struct kernel_header {
+    uint32_t size;
+    uint32_t offsets[];
+} const *kernel;
+
+void const *simple_mmap(char const *filename) {
+    int fd = open(filename, O_RDONLY);
+    struct stat stat;
+    fstat(fd, &stat);
+    void const *result = mmap(0, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    assert(result != MAP_FAILED);
+    return result;
+}
+
+void open_database(void) {
+    words = simple_mmap("db/words");
+    kernel = simple_mmap("db/kernel");
+}
+
+char const *word(wid_t wid) {
+    return (char const *) (((uint8_t *)words) + words->offsets[wid]);
+}
+
+struct dist const *conditional_dist(wid_t wid1) {
+    return (struct dist *) (((uint8_t *)kernel) + kernel->offsets[wid1]);
+}
+
+wid_t sample(struct dist const *dist) {
+    uint32_t x = rand() % dist->total_freq;
+    uint32_t sum = 0;
+    int i = 0;
+    while (i < dist->size) {
+        uint32_t freq = dist->word_freq[i].freq;
+        sum += freq;
+        if (sum >= x) {
+            return dist->word_freq[i].wid;
+        }
+        if (freq == 1) {
+            i += x - sum;
+            sum = x;
+        } else {
+            i += 1;
+        }
+    }
+    assert(0);
+}
+
+int main(int argc, char **argv) {
+    srand(time(NULL));
+
+    open_database();
+    assert(word(0)[0] == '\0');
+
+    wid_t previous = 0;
+    while (1) {
+        wid_t current = sample(conditional_dist(previous));
+        if (current == 0) {
+            break;
+        }
+
+        if (previous != 0) {
+            printf(" ");
+        }
+        printf("%s", word(current));
+        previous = current;
+    }
+    printf("\n");
+
+    return 0;
+}
