@@ -67,6 +67,8 @@ wid_t sample(struct dist const *dist) {
             return dist->word_freq[i].wid;
         }
         if (freq == 1) {
+            // Since freqs are sorted descending, when we reach the tail of 1s
+            // we can skip directly to the chosen word.
             i += x - sum;
             sum = x;
         } else {
