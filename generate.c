@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -9,8 +10,9 @@
 #include <assert.h>
 #include <sys/time.h>
 
-#define SENTENCE_WORDS_MIN 4
-#define SENTENCE_WORDS_MAX 9
+#define WORD_COUNT_MIN 3
+#define WORD_COUNT_MAX 7
+#define SENTENCE_LEN_MAX (WORD_COUNT_MAX * 2)
 
 typedef uint32_t wid_t;
 
@@ -89,26 +91,42 @@ int main(int argc, char **argv) {
     open_database();
     assert(word(0)[0] == '\0');
 
-    wid_t sentence[SENTENCE_WORDS_MAX];
+    wid_t sentence[SENTENCE_LEN_MAX];
     int sentence_len;
 
-    do {
-        sentence_len = 0;
-        wid_t previous = 0;
-        while (sentence_len < SENTENCE_WORDS_MAX) {
-            wid_t current = sample(transition_distribution(previous));
-            if (current == 0) {
-                break;
-            }
-
-            sentence[sentence_len] = current;
-            ++sentence_len;
-
-            previous = current;
-        }
-    } while (!(SENTENCE_WORDS_MIN <= sentence_len && sentence_len <= SENTENCE_WORDS_MAX));
-
+generate:
+    sentence_len = 0;
     wid_t previous = 0;
+    int word_count = 0;
+    while (1) {
+        if (sentence_len > SENTENCE_LEN_MAX) {
+            goto generate;
+        }
+
+        if (word_count > WORD_COUNT_MAX) {
+            goto generate;
+        }
+
+        wid_t current = sample(transition_distribution(previous));
+        if (current == 0) {
+            break;
+        }
+
+        sentence[sentence_len] = current;
+        ++sentence_len;
+
+        if (strlen(word(current)) > 2) {
+            ++word_count;
+        }
+
+        previous = current;
+    }
+
+    if (word_count < WORD_COUNT_MIN) {
+        goto generate;
+    }
+
+    previous = 0;
     for (int i = 0; i < sentence_len; ++i) {
         wid_t current = sentence[i];
         if (previous != 0) {
