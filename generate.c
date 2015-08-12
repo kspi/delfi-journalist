@@ -9,6 +9,9 @@
 #include <assert.h>
 #include <sys/time.h>
 
+#define SENTENCE_WORDS_MIN 4
+#define SENTENCE_WORDS_MAX 9
+
 typedef uint32_t wid_t;
 
 struct dist {
@@ -86,16 +89,32 @@ int main(int argc, char **argv) {
     open_database();
     assert(word(0)[0] == '\0');
 
-    wid_t previous = 0;
-    while (1) {
-        wid_t current = sample(transition_distribution(previous));
-        if (current == 0) {
-            break;
-        }
+    wid_t sentence[SENTENCE_WORDS_MAX];
+    int sentence_len;
 
+    do {
+        sentence_len = 0;
+        wid_t previous = 0;
+        while (sentence_len < SENTENCE_WORDS_MAX) {
+            wid_t current = sample(transition_distribution(previous));
+            if (current == 0) {
+                break;
+            }
+
+            sentence[sentence_len] = current;
+            ++sentence_len;
+
+            previous = current;
+        }
+    } while (!(SENTENCE_WORDS_MIN <= sentence_len && sentence_len <= SENTENCE_WORDS_MAX));
+
+    wid_t previous = 0;
+    for (int i = 0; i < sentence_len; ++i) {
+        wid_t current = sentence[i];
         if (previous != 0) {
             printf(" ");
         }
+
         printf("%s", word(current));
         previous = current;
     }
